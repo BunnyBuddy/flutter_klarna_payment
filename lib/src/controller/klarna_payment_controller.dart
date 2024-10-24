@@ -12,21 +12,28 @@ class KlarnaPaymentController {
 
   final _eventChannel = const EventChannel("flutter_klarna_payment_event");
   final _flutterKlarnaPaymentPlugin = FlutterKlarnaPayment();
-  late final StreamSubscription _subscription;
+  StreamSubscription? _subscription;
   final _stateController = BehaviorSubject<KlarnaPaymentControllerState>();
+  bool _isStreamInitialized = false;
 
   void pay() {
     _flutterKlarnaPaymentPlugin.pay();
   }
 
   void dispose() {
-    _subscription.cancel();
+    if (_isStreamInitialized) {
+      _subscription?.cancel();
+      _isStreamInitialized = false;
+    }
     _stateController.close();
   }
 
   void resetStream() {
-    _subscription.cancel();
-    _stateController.close();
+    if (_isStreamInitialized) {
+      _subscription?.cancel();
+      _stateController.close();
+      _isStreamInitialized = false;
+    }
     _setupSubscription();
   }
 
@@ -39,9 +46,13 @@ class KlarnaPaymentController {
   Stream<KlarnaPaymentControllerState> get stateStream => _stateController.stream;
 
   void _setupSubscription() {
+    if (_subscription != null) {
+      _subscription!.cancel();
+    }
     _subscription = _eventChannel.receiveBroadcastStream().listen((event) {
       _updateState(event['state'], event['message']);
     });
+    _isStreamInitialized = true;
   }
 
   set currentState(KlarnaPaymentControllerState state) {
