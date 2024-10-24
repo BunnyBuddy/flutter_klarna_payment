@@ -15,6 +15,7 @@ class KlarnaPaymentController {
   StreamSubscription? _subscription;
   final _stateController = BehaviorSubject<KlarnaPaymentControllerState>();
   bool _isStreamInitialized = false;
+  bool _isStreamClosed = false;
 
   void pay() {
     _flutterKlarnaPaymentPlugin.pay();
@@ -23,6 +24,7 @@ class KlarnaPaymentController {
   void dispose() {
     if (_isStreamInitialized) {
       _subscription?.cancel();
+      _isStreamClosed = true;
       _isStreamInitialized = false;
     }
     _stateController.close();
@@ -33,8 +35,12 @@ class KlarnaPaymentController {
       _subscription?.cancel();
       _stateController.close();
       _isStreamInitialized = false;
+      _isStreamClosed = true;
     }
-    _setupSubscription();
+    if (_isStreamClosed) {
+      _isStreamClosed = false;
+      _setupSubscription();
+    }
   }
 
   KlarnaPaymentControllerState _currentState = const KlarnaPaymentControllerState(state: KlarnaState.unknown);
@@ -53,6 +59,7 @@ class KlarnaPaymentController {
       _updateState(event['state'], event['message']);
     });
     _isStreamInitialized = true;
+    _isStreamClosed = false;
   }
 
   set currentState(KlarnaPaymentControllerState state) {
@@ -60,6 +67,9 @@ class KlarnaPaymentController {
   }
 
   void _updateState(String state, String? message) {
+    if (_isStreamClosed) {
+      return;
+    }
     final newState = KlarnaPaymentControllerState(state: klarnaStateFromString(state), message: message);
     _stateController.sink.add(newState);
     currentState = newState;
